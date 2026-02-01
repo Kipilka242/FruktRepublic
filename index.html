@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Minecraft Street View</title>
+
+    <!-- Pannellum с CDN -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css">
+    <script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
+
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            font-family: system-ui, sans-serif;
+        }
+        #topbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            background: rgba(0,0,0,0.7);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            z-index: 10;
+        }
+        #topbar select {
+            margin-left: 8px;
+        }
+        #panorama {
+            position: absolute;
+            top: 40px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
+    </style>
+</head>
+<body>
+
+<div id="topbar">
+    <span>Локация:</span>
+    <select id="locationSelect"></select>
+</div>
+
+<div id="panorama"></div>
+
+<script>
+    // Список локаций: title — как показывать, folder — имя папки рядом с HTML
+    const scenes = [
+        { id: 'meriya',        title: 'Мерия',                    folder: 'Мерия' },
+        { id: 'zhd',           title: 'ЖД-Станция',               folder: 'ЖД-Станция' },
+        { id: 'ferma_sani',    title: 'Ферма Сани',               folder: 'Ферма Сани' },
+        { id: 'ferma_ariny',   title: 'Ферма Арины',              folder: 'Ферма Арины' },
+        { id: 'most',          title: 'Мост над озером',          folder: 'Мост над озером' },
+        { id: 'ozero',         title: 'Озеро',                    folder: 'Озеро' },
+        { id: 'les',           title: 'Лес',                      folder: 'Лес' },
+        { id: 'ploshad_larki', title: 'Площадь перед ларьками',   folder: 'Площадь перед ларьками' },
+        { id: 'istochnik',     title: 'Источник Булыжника',       folder: 'Источник Булыжника' },
+        { id: 'kostyor',       title: 'Костёр',                   folder: 'Костёр' },
+        { id: 'kosti',         title: 'Кости',                    folder: 'Кости' },
+        { id: 'bashnya',       title: 'Башня Соборности',         folder: 'Башня Соборности' },
+        { id: 'koltso',        title: 'Кольцо со стороны Порося', folder: 'Кольцо со стороны Порося' },
+        { id: 'flag',          title: 'Флаг',                     folder: 'Флаг' },
+        { id: 'dom_layma',     title: 'Дом Лайма',                folder: 'Дом Лайма' },
+        { id: 'ofis_dorog',    title: 'Офис Дорог ФР',            folder: 'Офис Дорог ФР' },
+        { id: 'ofis_mon',      title: 'Офис Монархиста',          folder: 'Офис Монархиста' },
+        { id: 'vhod_meriya',   title: 'Вход в мерию',             folder: 'Вход в мерию' },
+        { id: 'tsin',          title: 'Цин',                      folder: 'Цин' }
+    ];
+
+    // Инициализация селекта
+    const select = document.getElementById('locationSelect');
+    scenes.forEach(scene => {
+        const opt = document.createElement('option');
+        opt.value = scene.id;
+        opt.textContent = scene.title;
+        select.appendChild(opt);
+    });
+
+    // Функция, которая строит конфиг cubemap для папки
+    function buildCubeMapConfig(folder) {
+        // panorama_0.png — вперёд
+        // panorama_1.png — направо
+        // panorama_2.png — назад
+        // panorama_3.png — налево
+        // panorama_4.png — вверх
+        // panorama_5.png — вниз
+        //
+        // Pannellum: [right, left, up, down, front, back]
+        return [
+            folder + '/panorama_1.png', // right
+            folder + '/panorama_3.png', // left
+            folder + '/panorama_4.png', // up
+            folder + '/panorama_5.png', // down
+            folder + '/panorama_0.png', // front
+            folder + '/panorama_2.png'  // back
+        ];
+    }
+
+    let viewer = null;
+
+    function loadScene(sceneId) {
+        const scene = scenes.find(s => s.id === sceneId);
+        if (!scene) return;
+
+        const config = {
+            type: 'cubemap',
+            cubeMap: buildCubeMapConfig(scene.folder),
+            autoLoad: true,
+            showControls: true,
+            compass: false,
+            hfov: 100
+        };
+
+        if (!viewer) {
+            viewer = pannellum.viewer('panorama', config);
+        } else {
+            viewer.destroy();
+            viewer = pannellum.viewer('panorama', config);
+        }
+    }
+
+    // При смене локации
+    select.addEventListener('change', () => {
+        loadScene(select.value);
+    });
+
+    // Загрузить первую сцену по умолчанию
+    if (scenes.length > 0) {
+        select.value = scenes[0].id;
+        loadScene(scenes[0].id);
+    }
+</script>
+
+</body>
+</html>
