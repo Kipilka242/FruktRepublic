@@ -84,24 +84,16 @@
     });
 
     // Функция, которая строит конфиг cubemap для папки
-    function buildCubeMapConfig(folder) {
-        // panorama_0.png — вперёд
-        // panorama_1.png — направо
-        // panorama_2.png — назад
-        // panorama_3.png — налево
-        // panorama_4.png — вверх
-        // panorama_5.png — вниз
-        //
-        // Pannellum: [right, left, up, down, front, back]
-        return [
-            folder + '/panorama_1.png', // right
-            folder + '/panorama_3.png', // left
-            folder + '/panorama_4.png', // up
-            folder + '/panorama_5.png', // down
-            folder + '/panorama_0.png', // front
-            folder + '/panorama_2.png'  // back
-        ];
-    }
+function buildCubeMapConfig(folder) {
+    return [
+        folder + '/panorama_1.png', // right
+        folder + '/panorama_5.png', // left (раньше было panorama_3)
+        folder + '/panorama_4.png', // up
+        folder + '/panorama_3.png', // down (раньше было panorama_5)
+        folder + '/panorama_0.png', // front
+        folder + '/panorama_2.png'  // back
+    ];
+}
 
     let viewer = null;
 
@@ -139,4 +131,5 @@
 </script>
 
 </body>
+
 </html>
