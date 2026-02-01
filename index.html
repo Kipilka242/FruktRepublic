@@ -67,7 +67,7 @@
         { id: 'bashnya',       title: 'Башня Соборности',         folder: 'Башня Соборности' },
         { id: 'koltso',        title: 'Кольцо со стороны Порося', folder: 'Кольцо со стороны Порося' },
         { id: 'flag',          title: 'Флаг',                     folder: 'Флаг' },
-        { id: 'dom_layma',     title: 'Дом Лайма',                folder: 'Дом Лайма' },
+ { id: 'dom_layma',     title: 'Дом Лайма',                folder: 'Дом Лайма' },
         { id: 'ofis_dorog',    title: 'Офис Дорог ФР',            folder: 'Офис Дорог ФР' },
         { id: 'ofis_mon',      title: 'Офис Монархиста',          folder: 'Офис Монархиста' },
         { id: 'vhod_meriya',   title: 'Вход в мерию',             folder: 'Вход в мерию' },
@@ -83,19 +83,18 @@
         select.appendChild(opt);
     });
 
-    // Функция, которая строит конфиг cubemap для папки
 function buildCubeMapConfig(folder) {
+    // Порядок для Pannellum: [front, right, back, left, up, down]
     return [
-        folder + '/panorama_1.png', // right
-        folder + '/panorama_3.png', // left
-        folder + '/panorama_4.png', // up
-        folder + '/panorama_5.png', // down
-        folder + '/panorama_0.png', // front
-        folder + '/panorama_2.png'  // back
+        folder + '/panorama_0.png', // 0 = вперёд (Front)
+        folder + '/panorama_1.png', // 1 = направо (Right)
+        folder + '/panorama_2.png', // 2 = назад   (Back)
+        folder + '/panorama_3.png', // 3 = налево  (Left)
+        folder + '/panorama_4.png', // 4 = вверх   (Up)
+        folder + '/panorama_5.png'  // 5 = вниз    (Down)
     ];
 }
-
-    let viewer = null;
+   let viewer = null;
 
     function loadScene(sceneId) {
         const scene = scenes.find(s => s.id === sceneId);
@@ -131,8 +130,4 @@ function buildCubeMapConfig(folder) {
 </script>
 
 </body>
-
 </html>
-
-
-
