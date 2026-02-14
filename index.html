@@ -2,134 +2,331 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Minecraft Street View</title>
-
-    <!-- Pannellum с CDN -->
+    <title>Minecraft Maps & Panoramas</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css">
-    <script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
-
+    
     <style>
-        html, body {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-            overflow: hidden;
-            font-family: system-ui, sans-serif;
+        :root { 
+            --google-blue: #1a73e8; 
+            --active-red: #d93025;
+            --bg-light: #f8f9fa;
         }
-        #topbar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 40px;
-            background: rgba(0,0,0,0.7);
-            color: #fff;
-            display: flex;
-            align-items: center;
-            padding: 0 10px;
-            z-index: 10;
+        html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Roboto', Arial, sans-serif; }
+        
+        /* Контейнер для плавного переключения между Картой и Панорамой */
+        #main-container { display: flex; height: 100%; width: 200%; transition: transform 0.5s ease-in-out; }
+        #main-container.show-pano { transform: translateX(-50%); }
+        
+        .view-section { width: 50%; height: 100%; position: relative; }
+        
+        /* Интерфейс карты */
+        #map-ui { position: absolute; top: 10px; left: 10px; z-index: 1000; display: flex; flex-direction: column; gap: 10px; }
+        .gm-card { background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); padding: 8px; display: flex; align-items: center; }
+        .search-box { width: 320px; height: 40px; padding: 0 15px; border: none; font-size: 16px; outline: none; }
+
+        .set-start-btn {
+            width: 48px; height: 48px; background: white; border: none; border-radius: 50%;
+            cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.3s ease; font-size: 22px; outline: none;
         }
-        #topbar select {
-            margin-left: 8px;
+        .set-start-btn.active { background: var(--google-blue); color: white; animation: pulse 1.5s infinite; }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(26, 115, 232, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(26, 115, 232, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(26, 115, 232, 0); }
         }
-        #panorama {
-            position: absolute;
-            top: 40px;
-            left: 0;
-            right: 0;
-            bottom: 0;
+
+        /* Панель маршрута */
+        #route-panel { position: absolute; top: 75px; left: 10px; z-index: 1000; width: 336px; background: white; border-radius: 8px; display: none; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        #route-info { font-size: 15px; font-weight: 500; color: #3c4043; margin-bottom: 8px; }
+        
+        .btn-pano-switch { position: absolute; bottom: 30px; right: 30px; z-index: 1000; background: var(--google-blue); color: white; border: none; padding: 12px 24px; border-radius: 25px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        
+        /* Верхняя панель в панорамах */
+        #topbar-pano {
+            position: absolute; top: 0; left: 0; right: 0; height: 45px;
+            background: rgba(0,0,0,0.7); color: #fff; display: flex;
+            align-items: center; padding: 0 10px; z-index: 10;
         }
+        #topbar-pano select { margin-left: 8px; padding: 3px; cursor: pointer; }
+        
+        #panorama { width: 100%; height: 100%; background: #000; }
+        #map { width: 100%; height: 100%; background: var(--bg-light); }
     </style>
 </head>
 <body>
 
-<div id="topbar">
-    <span>Локация:</span>
-    <select id="locationSelect"></select>
+<script src="data.js"></script>
+
+<div id="main-container">
+    <div class="view-section" id="section-map">
+        <div id="map-ui">
+            <div class="gm-card">
+                <input type="text" id="mapSearch" class="search-box" placeholder="Поиск в Minecraft (нажмите Enter)...">
+            </div>
+            <button id="toggleMarkerBtn" class="set-start-btn" onclick="toggleSelectionMode()" title="Выбрать точку отправления">📍</button>
+        </div>
+
+        <div id="route-panel">
+            <div style="font-size: 11px; color: var(--google-blue); font-weight: bold; text-transform: uppercase; margin-bottom: 4px;">Пункт назначения</div>
+            <div id="route-info"></div>
+            <button onclick="clearRoute()" style="border:none; background:none; color:var(--active-red); cursor:pointer; font-weight:500; padding:0;">Удалить маршрут</button>
+        </div>
+
+        <div id="map"></div>
+        <button class="btn-pano-switch" onclick="switchTo('panoram')">Панорамы</button>
+    </div>
+
+    <div class="view-section" id="section-pano">
+        <div id="topbar-pano">
+            <button onclick="switchTo('map')" style="background:white; border:none; padding:5px 12px; border-radius:4px; cursor:pointer; font-weight:bold; margin-right:15px;">⬅ Назад к карте</button>
+            <span>Локация:</span>
+            <select id="locationSelect"></select>
+        </div>
+        <div id="panorama"></div>
+    </div>
 </div>
 
-<div id="panorama"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
 
 <script>
-    // Список локаций: title — как показывать, folder — имя папки рядом с HTML
-    const scenes = [
-        { id: 'meriya',        title: 'Мерия',                    folder: 'Мерия' },
-        { id: 'zhd',           title: 'ЖД-Станция',               folder: 'ЖД-Станция' },
-        { id: 'ferma_sani',    title: 'Ферма Сани',               folder: 'Ферма Сани' },
-        { id: 'ferma_ariny',   title: 'Ферма Арины',              folder: 'Ферма Арины' },
-        { id: 'most',          title: 'Мост над озером',          folder: 'Мост над озером' },
-        { id: 'ozero',         title: 'Озеро',                    folder: 'Озеро' },
-        { id: 'les',           title: 'Лес',                      folder: 'Лес' },
-        { id: 'ploshad_larki', title: 'Площадь перед ларьками',   folder: 'Площадь перед ларьками' },
-        { id: 'istochnik',     title: 'Источник Булыжника',       folder: 'Источник Булыжника' },
-        { id: 'kostyor',       title: 'Костёр',                   folder: 'Костёр' },
-        { id: 'kosti',         title: 'Кости',                    folder: 'Кости' },
-         { id: 'Polet',         title: 'С птичьего Полёта',                    folder: 'С птичьего Полёта' },
-        { id: 'bashnya',       title: 'Башня Соборности',         folder: 'Башня Соборности' },
-        { id: 'koltso',        title: 'Кольцо со стороны Порося', folder: 'Кольцо со стороны Порося' },
-        { id: 'flag',          title: 'Флаг',                     folder: 'Флаг' },
- { id: 'dom_layma',     title: 'Дом Лайма',                folder: 'Дом Лайма' },
-        { id: 'ofis_dorog',    title: 'Офис Дорог ФР',            folder: 'Офис Дорог ФР' },
-        { id: 'ofis_mon',      title: 'Офис Монархиста',          folder: 'Офис Монархиста' },
-        { id: 'vhod_meriya',   title: 'Вход в мерию',             folder: 'Вход в мерию' },
-        { id: 'tsin',          title: 'Цин',                      folder: 'Цин' }
+    // 1. КОНФИГУРАЦИЯ И ДАННЫЕ
+    const PANO_SCENES = [
+        { id: 'meriya', title: 'Мерия', folder: 'Мерия' },
+        { id: 'zhd', title: 'ЖД-Станция', folder: 'ЖД-Станция' },
+        { id: 'ferma_sani', title: 'Ферма Сани', folder: 'Ферма Сани' },
+        { id: 'ferma_ariny', title: 'Ферма Арины', folder: 'Ферма Арины' },
+        { id: 'most', title: 'Мост над озером', folder: 'Мост над озером' },
+        { id: 'ozero', title: 'Озеро', folder: 'Озеро' },
+        { id: 'les', title: 'Лес', folder: 'Лес' },
+        { id: 'ploshad_larki', title: 'Площадь перед ларьками', folder: 'Площадь перед ларьками' },
+        { id: 'istochnik', title: 'Источник Булыжника', folder: 'Источник Булыжника' },
+        { id: 'kostyor', title: 'Костёр', folder: 'Костёр' },
+        { id: 'kosti', title: 'Кости', folder: 'Кости' },
+        { id: 'Polet', title: 'С птичьего Полёта', folder: 'С птичьего Полёта' },
+        { id: 'bashnya', title: 'Башня Соборности', folder: 'Башня Соборности' },
+        { id: 'koltso', title: 'Кольцо со стороны Порося', folder: 'Кольцо со стороны Порося' },
+        { id: 'flag', title: 'Флаг', folder: 'Флаг' },
+        { id: 'dom_layma', title: 'Дом Лайма', folder: 'Дом Лайма' },
+        { id: 'ofis_dorog', title: 'Офис Дорог ФР', folder: 'Офис Дорог ФР' },
+        { id: 'ofis_mon', title: 'Офис Монархиста', folder: 'Офис Монархиста' },
+        { id: 'vhod_meriya', title: 'Вход в мерию', folder: 'Вход в мерию' },
+        { id: 'tsin', title: 'Цин', folder: 'Цин' }
     ];
 
-    // Инициализация селекта
+    const myData = typeof mapData !== 'undefined' ? mapData : { type: "FeatureCollection", features: [] };
+    let userStartPoint = [500, 500]; // Точка А по умолчанию
+    let startMarker = null, currentRoute = null, isSelectionMode = false, viewer = null;
+
+    // 2. ИНИЦИАЛИЗАЦИЯ КАРТЫ
+    const map = L.map('map', { 
+        crs: L.CRS.Simple, 
+        minZoom: -2, 
+        maxZoom: 3, 
+        zoomControl: false,
+        attributionControl: false 
+    });
+    map.setView(userStartPoint, 0);
+
+    // Стили объектов
+    const layerStyle = {
+        water: { fillColor: '#aadaff', color: '#aadaff', weight: 1, fillOpacity: 0.8 },
+        building: { fillColor: '#f1f3f4', color: '#dadce0', weight: 1, fillOpacity: 1 },
+        road: { color: '#ffffff', weight: 5, opacity: 1 },
+        roadCase: { color: '#e8eaed', weight: 9, opacity: 1 }
+    };
+
+    // Отрисовка дорог (нижний слой)
+    L.geoJSON(myData, { 
+        filter: f => f.properties.mcType === 'road', 
+        style: layerStyle.roadCase, 
+        interactive: false 
+    }).addTo(map);
+
+    // Отрисовка всех объектов
+    L.geoJSON(myData, {
+        style: f => layerStyle[f.properties.mcType] || {},
+        onEachFeature: (f, l) => {
+            if (f.properties.name && f.properties.name !== ".") {
+                const c = getCentroid(f);
+                l.bindPopup(`
+                    <div style="text-align:center; font-family: sans-serif;">
+                        <b style="font-size:14px;">${f.properties.name}</b><br>
+                        <button onclick="buildRealRoute(${c[0]}, ${c[1]}, '${f.properties.name}')" 
+                                style="background:var(--google-blue); color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; margin-top:10px; width:100%;">
+                            Проложить маршрут
+                        </button>
+                    </div>
+                `);
+            } else {
+                l.setStyle({ opacity: 0, fillOpacity: 0 });
+            }
+        }
+    }).addTo(map);
+
+    // 3. ФУНКЦИИ ИНТЕРФЕЙСА
+    window.toggleSelectionMode = function() {
+        isSelectionMode = !isSelectionMode;
+        const btn = document.getElementById('toggleMarkerBtn');
+        btn.classList.toggle('active', isSelectionMode);
+        document.getElementById('map').style.cursor = isSelectionMode ? "crosshair" : "";
+    };
+
+    window.switchTo = function(mode) {
+        const container = document.getElementById('main-container');
+        if (mode === 'panoram') {
+            container.classList.add('show-pano');
+            if (!viewer) loadScene(PANO_SCENES[0].id);
+        } else {
+            container.classList.remove('show-pano');
+            // Важно: обновляем размер карты, чтобы она не "сломалась" после сдвига контейнера
+            setTimeout(() => { map.invalidateSize(); }, 500);
+        }
+    };
+
+    window.clearRoute = function() {
+        if (currentRoute) map.removeLayer(currentRoute);
+        document.getElementById('route-panel').style.display = 'none';
+    };
+
+    // Слушатель клика по карте
+    map.on('click', (e) => {
+        if (isSelectionMode) {
+            userStartPoint = [e.latlng.lat, e.latlng.lng];
+            if (startMarker) {
+                startMarker.setLatLng(e.latlng);
+            } else {
+                startMarker = L.marker(e.latlng, { 
+                    icon: L.icon({ 
+                        iconUrl: 'https://cdn-icons-png.flaticon.com/512/1673/1673188.png', 
+                        iconSize: [32, 32], 
+                        iconAnchor: [16, 32] 
+                    }) 
+                }).addTo(map);
+            }
+            window.toggleSelectionMode();
+        }
+    });
+
+    // 4. ЛОГИКА МАРШРУТОВ (DIJKSTRA)
+    window.buildRealRoute = function(tLat, tLng, tName) {
+        window.clearRoute();
+        const roads = myData.features.filter(f => f.properties.mcType === 'road');
+        const graph = {};
+        
+        roads.forEach(road => {
+            const coords = road.geometry.coordinates;
+            for (let i = 0; i < coords.length - 1; i++) {
+                const p1 = `${coords[i][1]},${coords[i][0]}`, p2 = `${coords[i+1][1]},${coords[i+1][0]}`;
+                const d = Math.hypot(coords[i][1]-coords[i+1][1], coords[i][0]-coords[i+1][0]);
+                if (!graph[p1]) graph[p1] = {}; if (!graph[p2]) graph[p2] = {};
+                graph[p1][p2] = d; graph[p2][p1] = d;
+            }
+        });
+
+        const findNearestNode = (lat, lng) => {
+            let min = Infinity, node = null;
+            Object.keys(graph).forEach(n => {
+                const [nLat, nLng] = n.split(',').map(Number);
+                const d = Math.hypot(lat - nLat, lng - nLng);
+                if (d < min) { min = d; node = n; }
+            });
+            return node;
+        };
+
+        const s = findNearestNode(userStartPoint[0], userStartPoint[1]);
+        const e = findNearestNode(tLat, tLng);
+        if(!s || !e) return;
+
+        const dists = {}, prev = {}, pq = new Set(Object.keys(graph));
+        Object.keys(graph).forEach(n => dists[n] = Infinity);
+        dists[s] = 0;
+
+        while(pq.size > 0) {
+            let curr = null;
+            pq.forEach(n => { if(!curr || dists[n] < dists[curr]) curr = n; });
+            if(!curr || dists[curr] === Infinity || curr === e) break;
+            pq.delete(curr);
+            for(let nei in graph[curr]) {
+                let alt = dists[curr] + graph[curr][nei];
+                if(alt < dists[nei]) { dists[nei] = alt; prev[nei] = curr; }
+            }
+        }
+
+        const path = []; let u = e;
+        while(u) { path.unshift(u.split(',').map(Number)); u = prev[u]; }
+
+        currentRoute = L.polyline([userStartPoint, ...path, [tLat, tLng]], { color: '#4285F4', weight: 5, lineJoin: 'round' }).addTo(map);
+        document.getElementById('route-panel').style.display = 'block';
+        document.getElementById('route-info').innerText = tName;
+        map.fitBounds(currentRoute.getBounds(), { padding: [50, 50] });
+    };
+
+    // 5. ЛОГИКА ПОИСКА
+    document.getElementById('mapSearch').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            const q = e.target.value.toLowerCase().trim();
+            if (!q) return;
+
+            const f = myData.features.find(feat => 
+                feat.properties.name && 
+                feat.properties.name.toLowerCase().includes(q) &&
+                feat.properties.name !== "."
+            );
+
+            if (f) {
+                const coords = getCentroid(f);
+                map.setView(coords, 2);
+                // Открываем попап найденного объекта
+                map.eachLayer(l => {
+                    if (l.feature === f) l.openPopup(coords);
+                });
+            } else {
+                alert("Объект не найден!");
+            }
+        }
+    });
+
+    // 6. ЛОГИКА ПАНОРАМ
     const select = document.getElementById('locationSelect');
-    scenes.forEach(scene => {
+    PANO_SCENES.forEach(s => {
         const opt = document.createElement('option');
-        opt.value = scene.id;
-        opt.textContent = scene.title;
+        opt.value = s.id; opt.textContent = s.title;
         select.appendChild(opt);
     });
 
-function buildCubeMapConfig(folder) {
-    // Порядок для Pannellum: [front, right, back, left, up, down]
-    return [
-        folder + '/panorama_0.png', // 0 = вперёд (Front)
-        folder + '/panorama_1.png', // 1 = направо (Right)
-        folder + '/panorama_2.png', // 2 = назад   (Back)
-        folder + '/panorama_3.png', // 3 = налево  (Left)
-        folder + '/panorama_4.png', // 4 = вверх   (Up)
-        folder + '/panorama_5.png'  // 5 = вниз    (Down)
-    ];
-}
-   let viewer = null;
-
     function loadScene(sceneId) {
-        const scene = scenes.find(s => s.id === sceneId);
+        const scene = PANO_SCENES.find(s => s.id === sceneId);
         if (!scene) return;
-
-        const config = {
+        if (viewer) viewer.destroy();
+        viewer = pannellum.viewer('panorama', {
             type: 'cubemap',
-            cubeMap: buildCubeMapConfig(scene.folder),
+            cubeMap: [
+                scene.folder + '/panorama_0.png', scene.folder + '/panorama_1.png',
+                scene.folder + '/panorama_2.png', scene.folder + '/panorama_3.png',
+                scene.folder + '/panorama_4.png', scene.folder + '/panorama_5.png'
+            ],
             autoLoad: true,
             showControls: true,
-            compass: false,
             hfov: 100
-        };
-
-        if (!viewer) {
-            viewer = pannellum.viewer('panorama', config);
-        } else {
-            viewer.destroy();
-            viewer = pannellum.viewer('panorama', config);
-        }
+        });
     }
 
-    // При смене локации
-    select.addEventListener('change', () => {
-        loadScene(select.value);
-    });
+    select.addEventListener('change', (e) => loadScene(e.target.value));
 
-    // Загрузить первую сцену по умолчанию
-    if (scenes.length > 0) {
-        select.value = scenes[0].id;
-        loadScene(scenes[0].id);
+    // Хелпер для получения координат центра любого объекта
+    function getCentroid(f) {
+        const g = f.geometry;
+        if (g.type === "Point") return [g.coordinates[1], g.coordinates[0]];
+        if (g.type === "Polygon") return [g.coordinates[0][0][1], g.coordinates[0][0][0]];
+        if (g.type === "LineString") return [g.coordinates[0][1], g.coordinates[0][0]];
+        if (g.type === "MultiPolygon") return [g.coordinates[0][0][0][1], g.coordinates[0][0][0][0]];
+        return [0, 0];
     }
 </script>
-
 </body>
 </html>
-
