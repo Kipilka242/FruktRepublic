@@ -2,331 +2,754 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Minecraft Maps & Panoramas</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Фруктовая Республика — Minecraft</title>
+
+    <!-- Стили Leaflet и Pannellum -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css">
-    
+
     <style>
-        :root { 
-            --google-blue: #1a73e8; 
+        :root {
+            --google-blue: #1a73e8;
             --active-red: #d93025;
             --bg-light: #f8f9fa;
+            --surface-white: #ffffff;
+            --text-primary: #202124;
+            --text-secondary: #5f6368;
+            --border-color: #dadce0;
         }
-        html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Roboto', Arial, sans-serif; }
-        
-        /* Контейнер для плавного переключения между Картой и Панорамой */
-        #main-container { display: flex; height: 100%; width: 200%; transition: transform 0.5s ease-in-out; }
-        #main-container.show-pano { transform: translateX(-50%); }
-        
-        .view-section { width: 50%; height: 100%; position: relative; }
-        
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Google Sans', 'Roboto', Arial, sans-serif;
+            background: #f1f3f4;
+        }
+
+        /* ==================== ГЛАВНЫЙ КОНТЕЙНЕР (КАРТА + ПАНОРАМЫ) ==================== */
+        #main-container {
+            display: flex;
+            height: 100%;
+            width: 200%;
+            transition: transform 0.4s ease-in-out;
+            position: relative;
+            z-index: 1;
+        }
+        #main-container.show-pano {
+            transform: translateX(-50%);
+        }
+
+        .view-section {
+            width: 50%;
+            height: 100%;
+            position: relative;
+        }
+
         /* Интерфейс карты */
-        #map-ui { position: absolute; top: 10px; left: 10px; z-index: 1000; display: flex; flex-direction: column; gap: 10px; }
-        .gm-card { background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); padding: 8px; display: flex; align-items: center; }
-        .search-box { width: 320px; height: 40px; padding: 0 15px; border: none; font-size: 16px; outline: none; }
+        #map-ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .gm-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+            padding: 8px;
+            display: flex;
+            align-items: center;
+        }
+        .search-box {
+            width: 320px;
+            height: 40px;
+            padding: 0 15px;
+            border: none;
+            font-size: 16px;
+            outline: none;
+            border-radius: 6px;
+            background: #fff;
+        }
 
         .set-start-btn {
-            width: 48px; height: 48px; background: white; border: none; border-radius: 50%;
-            cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-            display: flex; align-items: center; justify-content: center;
-            transition: all 0.3s ease; font-size: 22px; outline: none;
+            width: 44px;
+            height: 44px;
+            background: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.25s, color 0.25s;
+            font-size: 18px;
+            font-weight: bold;
+            color: #5f6368;
+            outline: none;
         }
-        .set-start-btn.active { background: var(--google-blue); color: white; animation: pulse 1.5s infinite; }
-        
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(26, 115, 232, 0.7); }
-            70% { box-shadow: 0 0 0 15px rgba(26, 115, 232, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(26, 115, 232, 0); }
+        .set-start-btn.active {
+            background: var(--google-blue);
+            color: white;
+            box-shadow: 0 2px 8px rgba(26, 115, 232, 0.5);
         }
 
         /* Панель маршрута */
-        #route-panel { position: absolute; top: 75px; left: 10px; z-index: 1000; width: 336px; background: white; border-radius: 8px; display: none; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
-        #route-info { font-size: 15px; font-weight: 500; color: #3c4043; margin-bottom: 8px; }
-        
-        .btn-pano-switch { position: absolute; bottom: 30px; right: 30px; z-index: 1000; background: var(--google-blue); color: white; border: none; padding: 12px 24px; border-radius: 25px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-        
+        #route-panel {
+            position: absolute;
+            top: 75px;
+            left: 10px;
+            z-index: 1000;
+            width: 336px;
+            background: white;
+            border-radius: 8px;
+            display: none;
+            padding: 14px 16px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+            font-size: 14px;
+        }
+        #route-info {
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 6px;
+        }
+
+        .btn-pano-switch {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            z-index: 1000;
+            background: white;
+            color: var(--google-blue);
+            border: 1px solid var(--border-color);
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 14px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+            transition: background 0.2s;
+            letter-spacing: 0.2px;
+        }
+        .btn-pano-switch:hover {
+            background: #f1f3f4;
+        }
+
+        /* Кнопка "На главную" на карте */
+        .btn-home-map {
+            position: absolute;
+            top: 12px;
+            right: 30px;
+            z-index: 1000;
+            background: white;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            padding: 8px 16px;
+            border-radius: 18px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 13px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-home-map:hover {
+            background: #f8f9fa;
+        }
+
         /* Верхняя панель в панорамах */
         #topbar-pano {
-            position: absolute; top: 0; left: 0; right: 0; height: 45px;
-            background: rgba(0,0,0,0.7); color: #fff; display: flex;
-            align-items: center; padding: 0 10px; z-index: 10;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 46px;
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            z-index: 10;
+            gap: 12px;
+            flex-wrap: wrap;
+            backdrop-filter: blur(4px);
         }
-        #topbar-pano select { margin-left: 8px; padding: 3px; cursor: pointer; }
-        
-        #panorama { width: 100%; height: 100%; background: #000; }
-        #map { width: 100%; height: 100%; background: var(--bg-light); }
+        #topbar-pano select {
+            margin-left: 4px;
+            padding: 5px 10px;
+            cursor: pointer;
+            border-radius: 4px;
+            border: none;
+            font-size: 14px;
+            background: #fff;
+            color: #333;
+        }
+        #topbar-pano .btn-home-pano {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            padding: 5px 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            color: white;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 13px;
+        }
+        #topbar-pano .btn-home-pano:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+        #topbar-pano button {
+            background: white;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            color: #333;
+            font-size: 13px;
+        }
+        #topbar-pano span {
+            font-size: 14px;
+            white-space: nowrap;
+        }
+
+        #panorama {
+            width: 100%;
+            height: 100%;
+            background: #000;
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+            background: var(--bg-light);
+        }
+
+        /* ==================== LANDING PAGE (СТАРТОВАЯ СТРАНИЦА) ==================== */
+        #landing-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 9999;
+            background: rgba(0, 0, 0, 0.45);
+            backdrop-filter: blur(6px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.35s ease, visibility 0.35s ease;
+            opacity: 1;
+            visibility: visible;
+            overflow-y: auto;
+        }
+        #landing-overlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .landing-card {
+            background: white;
+            border-radius: 20px;
+            padding: 36px 40px 40px;
+            box-shadow: 0 24px 48px rgba(0, 0, 0, 0.25);
+            text-align: center;
+            max-width: 520px;
+            width: 88%;
+            animation: none;
+            /* убираем анимацию появления, делаем статично */
+        }
+
+        .landing-card h1 {
+            font-size: 2.2rem;
+            margin: 0 0 6px;
+            color: #1e3a2f;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+            line-height: 1.3;
+        }
+        .landing-card .subtitle-big {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #b71c1c;
+            margin: 6px 0 2px;
+        }
+        .landing-card .join-text {
+            font-size: 1.2rem;
+            font-weight: 500;
+            color: #e65100;
+            margin: 4px 0 14px;
+        }
+        .divider-line {
+            width: 60px;
+            height: 3px;
+            background: #dadce0;
+            margin: 18px auto;
+            border-radius: 2px;
+        }
+        .season-note {
+            font-size: 0.9rem;
+            color: #5f6368;
+            margin: 8px 0 20px;
+            line-height: 1.5;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 4px;
+        }
+
+        .landing-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            padding: 14px 20px;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s, box-shadow 0.2s;
+            background: white;
+            color: var(--text-primary);
+            text-decoration: none;
+            letter-spacing: 0.2px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+        .landing-btn:hover {
+            background: #f8f9fa;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+        }
+        .landing-btn.primary {
+            background: var(--google-blue);
+            color: white;
+            border: none;
+            font-weight: 500;
+            box-shadow: 0 2px 8px rgba(26, 115, 232, 0.3);
+        }
+        .landing-btn.primary:hover {
+            background: #1669d0;
+            box-shadow: 0 4px 12px rgba(26, 115, 232, 0.4);
+        }
+        .btn-icon {
+            font-size: 1.1rem;
+            font-weight: 400;
+        }
+
+        /* Адаптивность */
+        @media (max-width: 600px) {
+            .landing-card {
+                padding: 24px 18px 28px;
+                border-radius: 16px;
+            }
+            .landing-card h1 {
+                font-size: 1.7rem;
+            }
+            .search-box {
+                width: 200px;
+            }
+            .btn-home-map {
+                top: 65px;
+                right: 10px;
+            }
+        }
     </style>
 </head>
 <body>
 
-<script src="data.js"></script>
-
-<div id="main-container">
-    <div class="view-section" id="section-map">
-        <div id="map-ui">
-            <div class="gm-card">
-                <input type="text" id="mapSearch" class="search-box" placeholder="Поиск в Minecraft (нажмите Enter)...">
+    <!-- ==================== LANDING PAGE ==================== -->
+    <div id="landing-overlay">
+        <div class="landing-card">
+            <h1>Фруктовая Республика</h1>
+            <div class="subtitle-big">Стартовал второй сезон!</div>
+            <div class="join-text">Присоединяйся!</div>
+            <div class="divider-line"></div>
+            <div class="season-note">
+                Первый сезон успешно завершён.<br>Новые приключения ждут вас во втором сезоне.
             </div>
-            <button id="toggleMarkerBtn" class="set-start-btn" onclick="toggleSelectionMode()" title="Выбрать точку отправления">📍</button>
+            <div class="btn-group">
+                <button class="landing-btn primary" onclick="goToMap()">
+                    <span class="btn-icon">&#9716;</span> Карта мира
+                </button>
+                <button class="landing-btn" onclick="goToPanoramas()">
+                    <span class="btn-icon">&#9698;</span> Панорамы
+                </button>
+                <a class="landing-btn" href="Fruct.zip" download>
+                    <span class="btn-icon">&#8681;</span> Скачать мир (Fruct.zip)
+                </a>
+            </div>
         </div>
-
-        <div id="route-panel">
-            <div style="font-size: 11px; color: var(--google-blue); font-weight: bold; text-transform: uppercase; margin-bottom: 4px;">Пункт назначения</div>
-            <div id="route-info"></div>
-            <button onclick="clearRoute()" style="border:none; background:none; color:var(--active-red); cursor:pointer; font-weight:500; padding:0;">Удалить маршрут</button>
-        </div>
-
-        <div id="map"></div>
-        <button class="btn-pano-switch" onclick="switchTo('panoram')">Панорамы</button>
     </div>
 
-    <div class="view-section" id="section-pano">
-        <div id="topbar-pano">
-            <button onclick="switchTo('map')" style="background:white; border:none; padding:5px 12px; border-radius:4px; cursor:pointer; font-weight:bold; margin-right:15px;">⬅ Назад к карте</button>
-            <span>Локация:</span>
-            <select id="locationSelect"></select>
+    <!-- ==================== ОСНОВНОЙ КОНТЕНТ ==================== -->
+    <div id="main-container">
+        <!-- Секция карты -->
+        <div class="view-section" id="section-map">
+            <div id="map-ui">
+                <div class="gm-card">
+                    <input type="text" id="mapSearch" class="search-box" placeholder="Поиск объектов...">
+                </div>
+                <button id="toggleMarkerBtn" class="set-start-btn" onclick="toggleSelectionMode()" title="Выбрать точку отправления">&#9678;</button>
+            </div>
+
+            <button class="btn-home-map" onclick="goHome()">
+                <span>&#8592;</span> На главную
+            </button>
+
+            <div id="route-panel">
+                <div style="font-size: 11px; color: var(--google-blue); font-weight: 500; text-transform: uppercase; margin-bottom: 4px;">Пункт назначения</div>
+                <div id="route-info"></div>
+                <button onclick="clearRoute()" style="border:none; background:none; color:var(--active-red); cursor:pointer; font-weight:500; padding:0;">Удалить маршрут</button>
+            </div>
+
+            <div id="map"></div>
+            <button class="btn-pano-switch" onclick="switchTo('panoram')">Панорамы</button>
         </div>
-        <div id="panorama"></div>
+
+        <!-- Секция панорам -->
+        <div class="view-section" id="section-pano">
+            <div id="topbar-pano">
+                <button class="btn-home-pano" onclick="goHome()">
+                    <span>&#8592;</span> На главную
+                </button>
+                <button onclick="switchTo('map')">К карте</button>
+                <span>Локация:</span>
+                <select id="locationSelect"></select>
+            </div>
+            <div id="panorama"></div>
+        </div>
     </div>
-</div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
+    <!-- Скрипты -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js">
+    </script>
+    <script src="data.js">
+    </script>
 
-<script>
-    // 1. КОНФИГУРАЦИЯ И ДАННЫЕ
-    const PANO_SCENES = [
-        { id: 'meriya', title: 'Мерия', folder: 'Мерия' },
-        { id: 'zhd', title: 'ЖД-Станция', folder: 'ЖД-Станция' },
-        { id: 'ferma_sani', title: 'Ферма Сани', folder: 'Ферма Сани' },
-        { id: 'ferma_ariny', title: 'Ферма Арины', folder: 'Ферма Арины' },
-        { id: 'most', title: 'Мост над озером', folder: 'Мост над озером' },
-        { id: 'ozero', title: 'Озеро', folder: 'Озеро' },
-        { id: 'les', title: 'Лес', folder: 'Лес' },
-        { id: 'ploshad_larki', title: 'Площадь перед ларьками', folder: 'Площадь перед ларьками' },
-        { id: 'istochnik', title: 'Источник Булыжника', folder: 'Источник Булыжника' },
-        { id: 'kostyor', title: 'Костёр', folder: 'Костёр' },
-        { id: 'kosti', title: 'Кости', folder: 'Кости' },
-        { id: 'Polet', title: 'С птичьего Полёта', folder: 'С птичьего Полёта' },
-        { id: 'bashnya', title: 'Башня Соборности', folder: 'Башня Соборности' },
-        { id: 'koltso', title: 'Кольцо со стороны Порося', folder: 'Кольцо со стороны Порося' },
-        { id: 'flag', title: 'Флаг', folder: 'Флаг' },
-        { id: 'dom_layma', title: 'Дом Лайма', folder: 'Дом Лайма' },
-        { id: 'ofis_dorog', title: 'Офис Дорог ФР', folder: 'Офис Дорог ФР' },
-        { id: 'ofis_mon', title: 'Офис Монархиста', folder: 'Офис Монархиста' },
-        { id: 'vhod_meriya', title: 'Вход в мерию', folder: 'Вход в мерию' },
-        { id: 'tsin', title: 'Цин', folder: 'Цин' }
-    ];
+    <script>
+        (function() {
+            // ==================== 1. КОНФИГУРАЦИЯ ====================
+            const PANO_SCENES = [
+                { id: 'meriya', title: 'Мерия', folder: 'Мерия' },
+                { id: 'zhd', title: 'ЖД-Станция', folder: 'ЖД-Станция' },
+                { id: 'ferma_sani', title: 'Ферма Сани', folder: 'Ферма Сани' },
+                { id: 'ferma_ariny', title: 'Ферма Арины', folder: 'Ферма Арины' },
+                { id: 'most', title: 'Мост над озером', folder: 'Мост над озером' },
+                { id: 'ozero', title: 'Озеро', folder: 'Озеро' },
+                { id: 'les', title: 'Лес', folder: 'Лес' },
+                { id: 'ploshad_larki', title: 'Площадь перед ларьками', folder: 'Площадь перед ларьками' },
+                { id: 'istochnik', title: 'Источник Булыжника', folder: 'Источник Булыжника' },
+                { id: 'kostyor', title: 'Костёр', folder: 'Костёр' },
+                { id: 'kosti', title: 'Кости', folder: 'Кости' },
+                { id: 'Polet', title: 'С птичьего Полёта', folder: 'С птичьего Полёта' },
+                { id: 'bashnya', title: 'Башня Соборности', folder: 'Башня Соборности' },
+                { id: 'koltso', title: 'Кольцо со стороны Порося', folder: 'Кольцо со стороны Порося' },
+                { id: 'flag', title: 'Флаг', folder: 'Флаг' },
+                { id: 'dom_layma', title: 'Дом Лайма', folder: 'Дом Лайма' },
+                { id: 'ofis_dorog', title: 'Офис Дорог ФР', folder: 'Офис Дорог ФР' },
+                { id: 'ofis_mon', title: 'Офис Монархиста', folder: 'Офис Монархиста' },
+                { id: 'vhod_meriya', title: 'Вход в мерию', folder: 'Вход в мерию' },
+                { id: 'tsin', title: 'Цин', folder: 'Цин' }
+            ];
 
-    const myData = typeof mapData !== 'undefined' ? mapData : { type: "FeatureCollection", features: [] };
-    let userStartPoint = [500, 500]; // Точка А по умолчанию
-    let startMarker = null, currentRoute = null, isSelectionMode = false, viewer = null;
+            const myData = typeof mapData !== 'undefined' ? mapData : { type: "FeatureCollection", features: [] };
+            let userStartPoint = [500, 500];
+            let startMarker = null,
+                currentRoute = null,
+                isSelectionMode = false,
+                viewer = null;
 
-    // 2. ИНИЦИАЛИЗАЦИЯ КАРТЫ
-    const map = L.map('map', { 
-        crs: L.CRS.Simple, 
-        minZoom: -2, 
-        maxZoom: 3, 
-        zoomControl: false,
-        attributionControl: false 
-    });
-    map.setView(userStartPoint, 0);
-
-    // Стили объектов
-    const layerStyle = {
-        water: { fillColor: '#aadaff', color: '#aadaff', weight: 1, fillOpacity: 0.8 },
-        building: { fillColor: '#f1f3f4', color: '#dadce0', weight: 1, fillOpacity: 1 },
-        road: { color: '#ffffff', weight: 5, opacity: 1 },
-        roadCase: { color: '#e8eaed', weight: 9, opacity: 1 }
-    };
-
-    // Отрисовка дорог (нижний слой)
-    L.geoJSON(myData, { 
-        filter: f => f.properties.mcType === 'road', 
-        style: layerStyle.roadCase, 
-        interactive: false 
-    }).addTo(map);
-
-    // Отрисовка всех объектов
-    L.geoJSON(myData, {
-        style: f => layerStyle[f.properties.mcType] || {},
-        onEachFeature: (f, l) => {
-            if (f.properties.name && f.properties.name !== ".") {
-                const c = getCentroid(f);
-                l.bindPopup(`
-                    <div style="text-align:center; font-family: sans-serif;">
-                        <b style="font-size:14px;">${f.properties.name}</b><br>
-                        <button onclick="buildRealRoute(${c[0]}, ${c[1]}, '${f.properties.name}')" 
-                                style="background:var(--google-blue); color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; margin-top:10px; width:100%;">
-                            Проложить маршрут
-                        </button>
-                    </div>
-                `);
-            } else {
-                l.setStyle({ opacity: 0, fillOpacity: 0 });
-            }
-        }
-    }).addTo(map);
-
-    // 3. ФУНКЦИИ ИНТЕРФЕЙСА
-    window.toggleSelectionMode = function() {
-        isSelectionMode = !isSelectionMode;
-        const btn = document.getElementById('toggleMarkerBtn');
-        btn.classList.toggle('active', isSelectionMode);
-        document.getElementById('map').style.cursor = isSelectionMode ? "crosshair" : "";
-    };
-
-    window.switchTo = function(mode) {
-        const container = document.getElementById('main-container');
-        if (mode === 'panoram') {
-            container.classList.add('show-pano');
-            if (!viewer) loadScene(PANO_SCENES[0].id);
-        } else {
-            container.classList.remove('show-pano');
-            // Важно: обновляем размер карты, чтобы она не "сломалась" после сдвига контейнера
-            setTimeout(() => { map.invalidateSize(); }, 500);
-        }
-    };
-
-    window.clearRoute = function() {
-        if (currentRoute) map.removeLayer(currentRoute);
-        document.getElementById('route-panel').style.display = 'none';
-    };
-
-    // Слушатель клика по карте
-    map.on('click', (e) => {
-        if (isSelectionMode) {
-            userStartPoint = [e.latlng.lat, e.latlng.lng];
-            if (startMarker) {
-                startMarker.setLatLng(e.latlng);
-            } else {
-                startMarker = L.marker(e.latlng, { 
-                    icon: L.icon({ 
-                        iconUrl: 'https://cdn-icons-png.flaticon.com/512/1673/1673188.png', 
-                        iconSize: [32, 32], 
-                        iconAnchor: [16, 32] 
-                    }) 
-                }).addTo(map);
-            }
-            window.toggleSelectionMode();
-        }
-    });
-
-    // 4. ЛОГИКА МАРШРУТОВ (DIJKSTRA)
-    window.buildRealRoute = function(tLat, tLng, tName) {
-        window.clearRoute();
-        const roads = myData.features.filter(f => f.properties.mcType === 'road');
-        const graph = {};
-        
-        roads.forEach(road => {
-            const coords = road.geometry.coordinates;
-            for (let i = 0; i < coords.length - 1; i++) {
-                const p1 = `${coords[i][1]},${coords[i][0]}`, p2 = `${coords[i+1][1]},${coords[i+1][0]}`;
-                const d = Math.hypot(coords[i][1]-coords[i+1][1], coords[i][0]-coords[i+1][0]);
-                if (!graph[p1]) graph[p1] = {}; if (!graph[p2]) graph[p2] = {};
-                graph[p1][p2] = d; graph[p2][p1] = d;
-            }
-        });
-
-        const findNearestNode = (lat, lng) => {
-            let min = Infinity, node = null;
-            Object.keys(graph).forEach(n => {
-                const [nLat, nLng] = n.split(',').map(Number);
-                const d = Math.hypot(lat - nLat, lng - nLng);
-                if (d < min) { min = d; node = n; }
+            // ==================== 2. КАРТА ====================
+            const map = L.map('map', {
+                crs: L.CRS.Simple,
+                minZoom: -2,
+                maxZoom: 3,
+                zoomControl: false,
+                attributionControl: false
             });
-            return node;
-        };
+            map.setView(userStartPoint, 0);
 
-        const s = findNearestNode(userStartPoint[0], userStartPoint[1]);
-        const e = findNearestNode(tLat, tLng);
-        if(!s || !e) return;
+            const layerStyle = {
+                water: { fillColor: '#aadaff', color: '#aadaff', weight: 1, fillOpacity: 0.8 },
+                building: { fillColor: '#f1f3f4', color: '#dadce0', weight: 1, fillOpacity: 1 },
+                road: { color: '#ffffff', weight: 5, opacity: 1 },
+                roadCase: { color: '#e8eaed', weight: 9, opacity: 1 }
+            };
 
-        const dists = {}, prev = {}, pq = new Set(Object.keys(graph));
-        Object.keys(graph).forEach(n => dists[n] = Infinity);
-        dists[s] = 0;
+            L.geoJSON(myData, {
+                filter: f => f.properties.mcType === 'road',
+                style: layerStyle.roadCase,
+                interactive: false
+            }).addTo(map);
 
-        while(pq.size > 0) {
-            let curr = null;
-            pq.forEach(n => { if(!curr || dists[n] < dists[curr]) curr = n; });
-            if(!curr || dists[curr] === Infinity || curr === e) break;
-            pq.delete(curr);
-            for(let nei in graph[curr]) {
-                let alt = dists[curr] + graph[curr][nei];
-                if(alt < dists[nei]) { dists[nei] = alt; prev[nei] = curr; }
-            }
-        }
+            L.geoJSON(myData, {
+                style: f => layerStyle[f.properties.mcType] || {},
+                onEachFeature: (f, l) => {
+                    if (f.properties.name && f.properties.name !== ".") {
+                        const c = getCentroid(f);
+                        l.bindPopup(`
+                            <div style="text-align:center; font-family: sans-serif;">
+                                <b style="font-size:14px;">${f.properties.name}</b><br>
+                                <button onclick="window.buildRealRoute(${c[0]}, ${c[1]}, '${f.properties.name.replace(/'/g, "\\'")}')" 
+                                        style="background:var(--google-blue); color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; margin-top:10px; width:100%;">
+                                    Проложить маршрут
+                                </button>
+                            </div>
+                        `);
+                    } else {
+                        l.setStyle({ opacity: 0, fillOpacity: 0 });
+                    }
+                }
+            }).addTo(map);
 
-        const path = []; let u = e;
-        while(u) { path.unshift(u.split(',').map(Number)); u = prev[u]; }
+            // ==================== 3. ИНТЕРФЕЙС ====================
+            window.toggleSelectionMode = function() {
+                isSelectionMode = !isSelectionMode;
+                const btn = document.getElementById('toggleMarkerBtn');
+                btn.classList.toggle('active', isSelectionMode);
+                document.getElementById('map').style.cursor = isSelectionMode ? "crosshair" : "";
+            };
 
-        currentRoute = L.polyline([userStartPoint, ...path, [tLat, tLng]], { color: '#4285F4', weight: 5, lineJoin: 'round' }).addTo(map);
-        document.getElementById('route-panel').style.display = 'block';
-        document.getElementById('route-info').innerText = tName;
-        map.fitBounds(currentRoute.getBounds(), { padding: [50, 50] });
-    };
+            window.switchTo = function(mode) {
+                const container = document.getElementById('main-container');
+                if (mode === 'panoram') {
+                    container.classList.add('show-pano');
+                    if (!viewer) loadScene(PANO_SCENES[0].id);
+                    setTimeout(() => {
+                        if (viewer && viewer.resize) viewer.resize();
+                    }, 500);
+                } else {
+                    container.classList.remove('show-pano');
+                    setTimeout(() => {
+                        map.invalidateSize();
+                        if (viewer && viewer.resize) viewer.resize();
+                    }, 500);
+                }
+            };
 
-    // 5. ЛОГИКА ПОИСКА
-    document.getElementById('mapSearch').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            const q = e.target.value.toLowerCase().trim();
-            if (!q) return;
+            window.clearRoute = function() {
+                if (currentRoute) map.removeLayer(currentRoute);
+                currentRoute = null;
+                document.getElementById('route-panel').style.display = 'none';
+            };
 
-            const f = myData.features.find(feat => 
-                feat.properties.name && 
-                feat.properties.name.toLowerCase().includes(q) &&
-                feat.properties.name !== "."
-            );
+            map.on('click', (e) => {
+                if (isSelectionMode) {
+                    userStartPoint = [e.latlng.lat, e.latlng.lng];
+                    if (startMarker) {
+                        startMarker.setLatLng(e.latlng);
+                    } else {
+                        startMarker = L.marker(e.latlng, {
+                            icon: L.icon({
+                                iconUrl: 'https://cdn-icons-png.flaticon.com/512/1673/1673188.png',
+                                iconSize: [32, 32],
+                                iconAnchor: [16, 32]
+                            })
+                        }).addTo(map);
+                    }
+                    window.toggleSelectionMode();
+                }
+            });
 
-            if (f) {
-                const coords = getCentroid(f);
-                map.setView(coords, 2);
-                // Открываем попап найденного объекта
-                map.eachLayer(l => {
-                    if (l.feature === f) l.openPopup(coords);
+            // ==================== 4. МАРШРУТЫ ====================
+            window.buildRealRoute = function(tLat, tLng, tName) {
+                window.clearRoute();
+                const roads = myData.features.filter(f => f.properties.mcType === 'road');
+                const graph = {};
+
+                roads.forEach(road => {
+                    const coords = road.geometry.coordinates;
+                    for (let i = 0; i < coords.length - 1; i++) {
+                        const p1 = `${coords[i][1]},${coords[i][0]}`,
+                            p2 = `${coords[i+1][1]},${coords[i+1][0]}`;
+                        const d = Math.hypot(coords[i][1] - coords[i + 1][1], coords[i][0] - coords[i + 1][0]);
+                        if (!graph[p1]) graph[p1] = {};
+                        if (!graph[p2]) graph[p2] = {};
+                        graph[p1][p2] = d;
+                        graph[p2][p1] = d;
+                    }
                 });
-            } else {
-                alert("Объект не найден!");
+
+                const findNearestNode = (lat, lng) => {
+                    let min = Infinity,
+                        node = null;
+                    Object.keys(graph).forEach(n => {
+                        const [nLat, nLng] = n.split(',').map(Number);
+                        const d = Math.hypot(lat - nLat, lng - nLng);
+                        if (d < min) { min = d;
+                            node = n; }
+                    });
+                    return node;
+                };
+
+                const s = findNearestNode(userStartPoint[0], userStartPoint[1]);
+                const e = findNearestNode(tLat, tLng);
+                if (!s || !e) {
+                    alert('Не удалось построить маршрут.');
+                    return;
+                }
+
+                const dists = {},
+                    prev = {},
+                    pq = new Set(Object.keys(graph));
+                Object.keys(graph).forEach(n => dists[n] = Infinity);
+                dists[s] = 0;
+
+                while (pq.size > 0) {
+                    let curr = null;
+                    pq.forEach(n => { if (!curr || dists[n] < dists[curr]) curr = n; });
+                    if (!curr || dists[curr] === Infinity || curr === e) break;
+                    pq.delete(curr);
+                    for (let nei in graph[curr]) {
+                        let alt = dists[curr] + graph[curr][nei];
+                        if (alt < dists[nei]) { dists[nei] = alt;
+                            prev[nei] = curr; }
+                    }
+                }
+
+                const path = [];
+                let u = e;
+                while (u) {
+                    path.unshift(u.split(',').map(Number));
+                    u = prev[u];
+                }
+                if (path.length === 0) {
+                    alert('Маршрут не найден.');
+                    return;
+                }
+
+                currentRoute = L.polyline([userStartPoint, ...path, [tLat, tLng]], {
+                    color: '#4285F4',
+                    weight: 5,
+                    lineJoin: 'round'
+                }).addTo(map);
+                document.getElementById('route-panel').style.display = 'block';
+                document.getElementById('route-info').innerText = tName;
+                try {
+                    map.fitBounds(currentRoute.getBounds(), { padding: [50, 50], maxZoom: 2 });
+                } catch (e) {
+                    map.setView([tLat, tLng], 1);
+                }
+            };
+
+            // ==================== 5. ПОИСК ====================
+            document.getElementById('mapSearch').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    const q = e.target.value.toLowerCase().trim();
+                    if (!q) return;
+                    const f = myData.features.find(feat =>
+                        feat.properties.name &&
+                        feat.properties.name.toLowerCase().includes(q) &&
+                        feat.properties.name !== "."
+                    );
+                    if (f) {
+                        const coords = getCentroid(f);
+                        map.setView(coords, 2);
+                        map.eachLayer(l => {
+                            if (l.feature === f) l.openPopup(coords);
+                        });
+                    } else {
+                        alert("Объект не найден.");
+                    }
+                }
+            });
+
+            // ==================== 6. ПАНОРАМЫ ====================
+            const select = document.getElementById('locationSelect');
+            PANO_SCENES.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.textContent = s.title;
+                select.appendChild(opt);
+            });
+
+            function loadScene(sceneId) {
+                const scene = PANO_SCENES.find(s => s.id === sceneId);
+                if (!scene) return;
+                if (viewer) {
+                    try { viewer.destroy(); } catch (e) {}
+                }
+                viewer = pannellum.viewer('panorama', {
+                    type: 'cubemap',
+                    cubeMap: [
+                        scene.folder + '/panorama_0.png',
+                        scene.folder + '/panorama_1.png',
+                        scene.folder + '/panorama_2.png',
+                        scene.folder + '/panorama_3.png',
+                        scene.folder + '/panorama_4.png',
+                        scene.folder + '/panorama_5.png'
+                    ],
+                    autoLoad: true,
+                    showControls: true,
+                    hfov: 100,
+                    keyboardZoom: true,
+                    mouseZoom: true
+                });
             }
-        }
-    });
 
-    // 6. ЛОГИКА ПАНОРАМ
-    const select = document.getElementById('locationSelect');
-    PANO_SCENES.forEach(s => {
-        const opt = document.createElement('option');
-        opt.value = s.id; opt.textContent = s.title;
-        select.appendChild(opt);
-    });
+            select.addEventListener('change', (e) => loadScene(e.target.value));
 
-    function loadScene(sceneId) {
-        const scene = PANO_SCENES.find(s => s.id === sceneId);
-        if (!scene) return;
-        if (viewer) viewer.destroy();
-        viewer = pannellum.viewer('panorama', {
-            type: 'cubemap',
-            cubeMap: [
-                scene.folder + '/panorama_0.png', scene.folder + '/panorama_1.png',
-                scene.folder + '/panorama_2.png', scene.folder + '/panorama_3.png',
-                scene.folder + '/panorama_4.png', scene.folder + '/panorama_5.png'
-            ],
-            autoLoad: true,
-            showControls: true,
-            hfov: 100
-        });
-    }
+            // ==================== 7. НАВИГАЦИЯ ====================
+            const landingOverlay = document.getElementById('landing-overlay');
+            const mainContainer = document.getElementById('main-container');
 
-    select.addEventListener('change', (e) => loadScene(e.target.value));
+            window.goToMap = function() {
+                landingOverlay.classList.add('hidden');
+                mainContainer.classList.remove('show-pano');
+                setTimeout(() => {
+                    map.invalidateSize();
+                }, 400);
+            };
 
-    // Хелпер для получения координат центра любого объекта
-    function getCentroid(f) {
-        const g = f.geometry;
-        if (g.type === "Point") return [g.coordinates[1], g.coordinates[0]];
-        if (g.type === "Polygon") return [g.coordinates[0][0][1], g.coordinates[0][0][0]];
-        if (g.type === "LineString") return [g.coordinates[0][1], g.coordinates[0][0]];
-        if (g.type === "MultiPolygon") return [g.coordinates[0][0][0][1], g.coordinates[0][0][0][0]];
-        return [0, 0];
-    }
-</script>
+            window.goToPanoramas = function() {
+                landingOverlay.classList.add('hidden');
+                mainContainer.classList.add('show-pano');
+                if (!viewer) loadScene(PANO_SCENES[0].id);
+                setTimeout(() => {
+                    if (viewer && viewer.resize) viewer.resize();
+                }, 500);
+            };
+
+            window.goHome = function() {
+                landingOverlay.classList.remove('hidden');
+                if (isSelectionMode) window.toggleSelectionMode();
+            };
+
+            function getCentroid(f) {
+                const g = f.geometry;
+                if (g.type === "Point") return [g.coordinates[1], g.coordinates[0]];
+                if (g.type === "Polygon") return [g.coordinates[0][0][1], g.coordinates[0][0][0]];
+                if (g.type === "LineString") return [g.coordinates[0][1], g.coordinates[0][0]];
+                if (g.type === "MultiPolygon") return [g.coordinates[0][0][0][1], g.coordinates[0][0][0][0]];
+                return [0, 0];
+            }
+
+            window.addEventListener('resize', () => {
+                if (!landingOverlay.classList.contains('hidden')) {
+                    map.invalidateSize();
+                    if (viewer && viewer.resize) viewer.resize();
+                }
+            });
+
+        })();
+    </script>
 </body>
 </html>
