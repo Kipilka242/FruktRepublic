@@ -269,7 +269,6 @@
             max-width: 520px;
             width: 88%;
             animation: none;
-            /* убираем анимацию появления, делаем статично */
         }
 
         .landing-card h1 {
@@ -383,6 +382,8 @@
             <div class="season-note">
                 Первый сезон успешно завершён.<br>Новые приключения ждут вас во втором сезоне.
             </div>
+            <!-- Явный разделитель и заголовок для кнопок первого сезона -->
+            <div style="font-size: 0.8rem; color: #5f6368; text-transform: uppercase; letter-spacing: 1px; margin: 16px 0 8px; font-weight: 500;">Первый сезон</div>
             <div class="btn-group">
                 <button class="landing-btn primary" onclick="goToMap()">
                     <span class="btn-icon">&#9716;</span> Карта мира
@@ -390,9 +391,9 @@
                 <button class="landing-btn" onclick="goToPanoramas()">
                     <span class="btn-icon">&#9698;</span> Панорамы
                 </button>
-               <a class="landing-btn" href="https://t.me/FruitRepublic/844" target="_blank">
-    <span class="btn-icon">&#8681;</span> Скачать мир
-</a>
+                <a class="landing-btn" href="https://t.me/FruitRepublic/844" target="_blank">
+                    <span class="btn-icon">&#8681;</span> Скачать мир
+                </a>
             </div>
         </div>
     </div>
