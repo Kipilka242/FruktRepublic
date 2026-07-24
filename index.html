@@ -375,7 +375,7 @@
     <!-- ==================== LANDING PAGE ==================== -->
     <div id="landing-overlay">
         <div class="landing-card">
-            <h1>Фруктовая Республика</h1>
+            <h1 id=mainLabel>Фруктовая Республика</h1>
             <div class="subtitle-big">Стартовал второй сезон!</div>
             <div class="join-text">Присоединяйся!</div>
             <div class="divider-line"></div>
@@ -446,6 +446,12 @@
     </script>
 
     <script>
+        const label = document.getElementById("mainLabel");
+        setInterval(() => {
+    label.textContent = (label.textContent === "Фруктовая Республика")
+        ? "Теперь - Латгалия"
+        : "Фруктовая Республика";
+}, 5000);
         (function() {
             // ==================== 1. КОНФИГУРАЦИЯ ====================
             const PANO_SCENES = [
